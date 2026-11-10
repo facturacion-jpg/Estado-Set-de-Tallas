@@ -13,8 +13,10 @@ function Mail({s,por,close}){
  const [toEmail,setToEmail]=useLS('emailTo','');
  const status=s.fin==='aprobado'?'Aprobado':'Rechazado';
  const reason=s.obs?.trim()||'Sin observaciones';
- const subject=`Set ${status.toLowerCase()} - REF ${s.ref}`;
- const message=`Estado: ${status}\nMotivo: ${reason}\n\nReferencia: ${s.ref}\nOC: ${s.oc}\nMarca: ${s.marca}\nFecha: ${fd(s.finF)}\nDiligenciado por: ${por}`;
+ const title=`Resultado de auditoría de set de tallas — REF ${s.ref}`;
+ const subject=title;
+ const notesLabel=s.fin==='rechazado'?'Motivo':'Observaciones';
+ const message=`Estado: ${status}\nUnidades enviadas: ${s.unid||'—'}\n${notesLabel}: ${reason}\n\nReferencia: ${s.ref}\nOC: ${s.oc}\nMarca: ${s.marca}\nFecha: ${fd(s.finF)}\nDiligenciado por: ${por}`;
  const validEmail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim());
  const send=async()=>{
   if(!configured){
@@ -31,11 +33,14 @@ function Mail({s,por,close}){
    await emailjs.send(serviceId,templateId,{
     to_email:toEmail,
     subject,
+    title,
     name:por||'Auditoría de sets de tallas',
     from_name:por||'Auditoría de sets de tallas',
     message,
     status,
     reason,
+    observations:reason,
+    units:s.unid||'—',
     reference:s.ref,
     order:s.oc,
     brand:s.marca,
@@ -51,9 +56,9 @@ function Mail({s,por,close}){
   }
  };
  return html`<div className="ov" role="dialog" aria-modal="true" aria-labelledby="mail-title"><div className="mail">
- <h3 id="mail-title" style=${{margin:0}}>Resultado: ${status}</h3>
+ <h3 id="mail-title" style=${{margin:0}}>${title}</h3>
  <div className="fl"><label htmlFor="email-to">Enviar a</label><input id="email-to" type="email" value=${toEmail} onInput=${x=>{setToEmail(x.target.value);setError('')}} placeholder="correo@empresa.com" autoComplete="email"/></div>
- <pre>Estado: ${status}\nMotivo: ${reason}</pre>
+ <pre>${message}</pre>
  ${!configured&&html`<p className="mut" role="status">EmailJS aún no está configurado. Consulta README.md para completar la configuración.</p>`}
  ${error&&html`<p className="mail-error" role="alert">${error}</p>`}
  ${result&&html`<p className="mail-success" role="status">${result}</p>`}

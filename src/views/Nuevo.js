@@ -13,8 +13,9 @@ function Nuevo({plano,sets,add,go}){
  return html`<div className="nuevo-view"><${Head} t="Nuevo set de tallas" s="Elige la REF y el sistema trae la OC, la marca y los colores del plano."/>
  <div className="panel" style=${{maxWidth:'620px'}}>
  <div className="fl cb"><label htmlFor="ref">Referencia</label>
- <input id="ref" role="combobox" aria-expanded=${open} autoComplete="off" placeholder="Escribe o busca la REF" value=${q} onFocus=${()=>setOpen(true)} onInput=${x=>{setQ(x.target.value);setOpen(true);setRef('')}}/>
- ${open&&html`<div className="dd">${lista.length?lista.map(r=>html`<button key=${r} type="button" onClick=${()=>pick(r)}><span className="ref">${r}</span><span className="mut">${plano.filter(p=>p.ref===r).map(p=>p.marca)[0]}</span></button>`):html`<div className="empty">Esa REF no está en el plano.</div>`}</div>`}</div>
+ <input id="ref" role="combobox" aria-expanded=${open} autoComplete="off" disabled=${!plano.length} placeholder=${plano.length?'Escribe o busca la REF':'Carga un plano para crear sets'} value=${q} onFocus=${()=>setOpen(true)} onInput=${x=>{setQ(x.target.value);setOpen(true);setRef('')}}/>
+ ${!plano.length&&html`<p className="mut">El plano está vacío. Carga un archivo desde la sección Plano para habilitar la creación de sets.</p>`}
+ ${open&&plano.length&&html`<div className="dd">${lista.length?lista.map(r=>html`<button key=${r} type="button" onClick=${()=>pick(r)}><span className="ref">${r}</span><span className="mut">${plano.filter(p=>p.ref===r).map(p=>p.marca)[0]}</span></button>`):html`<div className="empty">Esa REF no está en el plano.</div>`}</div>`}</div>
  ${ref&&html`<div className="ref-details">
   <div className="fl"><span className="lbl">Marca</span><div>${marca}</div></div>
   <div className="fl"><span className="lbl">Colores</span><${Chips} l=${col}/></div>
