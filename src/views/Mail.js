@@ -11,7 +11,7 @@ function Mail({s,por,close}){
  const [result,setResult]=useState('');
  const [error,setError]=useState('');
  const [toEmail,setToEmail]=useLS('emailTo','');
- const status=s.fin==='aprobado'?'Aprobado':'Rechazado';
+ const status=s.fin==='aprobado'?'Aprobado':s.fin==='rechazado'?'Rechazado':'Pendiente';
  const reason=s.obs?.trim()||'Sin observaciones';
  const title=`Resultado de auditoría de set de tallas — REF ${s.ref}`;
  const subject=title;
@@ -31,7 +31,7 @@ function Mail({s,por,close}){
   setError('');
   try{
    await emailjs.send(serviceId,templateId,{
-    to_email:toEmail,
+    to_email:toEmail.trim(),
     subject,
     title,
     name:por||'Auditoría de sets de tallas',
@@ -59,11 +59,11 @@ function Mail({s,por,close}){
  <h3 id="mail-title" style=${{margin:0}}>${title}</h3>
  <div className="fl"><label htmlFor="email-to">Enviar a</label><input id="email-to" type="email" value=${toEmail} onInput=${x=>{setToEmail(x.target.value);setError('')}} placeholder="correo@empresa.com" autoComplete="email"/></div>
  <pre>${message}</pre>
- ${!configured&&html`<p className="mut" role="status">EmailJS aún no está configurado. Consulta README.md para completar la configuración.</p>`}
+ ${!configured&&html`<p className="mut" role="status">EmailJS aún no está configurado. Consulta README.md. Si ya completaste .env.local, detén y vuelve a iniciar la aplicación (npm run dev).</p>`}
  ${error&&html`<p className="mail-error" role="alert">${error}</p>`}
  ${result&&html`<p className="mail-success" role="status">${result}</p>`}
  <div style=${{display:'flex',gap:'8px',justifyContent:'flex-end',marginTop:'12px'}}>
- <button type="button" className="btn" disabled=${sending||Boolean(result)||!configured||!validEmail} onClick=${send}>${sending?'Enviando…':result?'Enviado':'Enviar correo'}</button>
+ <button type="button" className="btn" disabled=${sending||Boolean(result)} onClick=${send}>${sending?'Enviando…':result?'Enviado':'Enviar correo'}</button>
  <button type="button" className="btn btn-ghost" disabled=${sending} onClick=${close}>Cerrar</button>
  </div></div></div>`;
 }

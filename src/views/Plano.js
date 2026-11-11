@@ -1,6 +1,41 @@
 import {html,useEffect,useState} from '../lib.js';
 import {Chips,Head} from '../components/ui.js';
 
+const norm=x=>(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const decode=buf=>{try{return new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){return new TextDecoder('windows-1252').decode(buf)}};
+function splitRow(line,d){
+ const out=[];let cur='',q=false;
+ for(let i=0;i<line.length;i++){
+  const c=line[i];
+  if(q){if(c==='"'){if(line[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+  else if(c==='"')q=true;
+  else if(c===d){out.push(cur);cur=''}
+  else cur+=c;
+ }
+ out.push(cur);
+ return out.map(x=>x.trim());
+}
+function parsePlano(text){
+ const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(l=>l.replace(/[,;\t\s"]/g,''));
+ if(!lines.length)return {rows:[],skipped:0};
+ const d=[',',';','\t'].map(c=>[c,lines[0].split(c).length]).sort((a,b)=>b[1]-a[1])[0][0];
+ const raw=splitRow(lines[0],d),cells=raw.map(norm);
+ const find=names=>cells.findIndex(c=>names.includes(c));
+ let iOc=find(['OC','ORDEN','ORDENDECOMPRA']),iRef=find(['REF','REFERENCIA']),iMarca=find(['MARCA']),iColor=find(['COLOR','COLORES']),start=1;
+ if(iOc<0||iRef<0){iOc=0;iRef=1;iMarca=2;iColor=3;if(/^\d+$/.test(raw[0]||''))start=0}
+ if(iMarca<0)iMarca=2;
+ if(iColor<0)iColor=3;
+ const m={};let skipped=0;
+ lines.slice(start).forEach(l=>{
+  const r=splitRow(l,d),oc=r[iOc]||'',ref=r[iRef]||'';
+  if(!oc||!ref){skipped++;return}
+  const k=oc+'|'+ref;
+  m[k]=m[k]||{oc,ref,marca:(r[iMarca]||'').toUpperCase(),colores:[]};
+  (r[iColor]||'').split(/[,;|]/).map(x=>x.trim()).filter(Boolean).forEach(c=>{if(!m[k].colores.includes(c))m[k].colores.push(c)});
+ });
+ return {rows:Object.values(m),skipped};
+}
+
 function AddSetDialog({onClose,children}){
  useEffect(()=>{
   const onKeyDown=e=>{if(e.key==='Escape')onClose()};
@@ -15,7 +50,7 @@ function AddSetDialog({onClose,children}){
 }
 
 function Plano({plano,setPlano}){
- const [oc,setOc]=useState(''),[ref,setRef]=useState(''),[marca,setMarca]=useState(''),[colores,setColores]=useState(''),[formError,setFormError]=useState(''),[showAdd,setShowAdd]=useState(false);
+ const [oc,setOc]=useState(''),[ref,setRef]=useState(''),[marca,setMarca]=useState(''),[colores,setColores]=useState(''),[formError,setFormError]=useState(''),[showAdd,setShowAdd]=useState(false),[msg,setMsg]=useState(null);
  const closeAdd=()=>{setShowAdd(false);setFormError('')};
  const addReference=ev=>{
   ev.preventDefault();
@@ -32,11 +67,19 @@ function Plano({plano,setPlano}){
   setPlano([...plano,{oc:cleanOc,ref:cleanRef,marca:cleanMarca,colores:cleanColors}]);
   setOc('');setRef('');setMarca('');setColores('');closeAdd();
  };
- const load=ev=>{const f=ev.target.files[0];if(!f)return;f.text().then(t=>{const m={};
-  t.split(/\r?\n/).slice(1).forEach(r=>{const [oc,ref,marca,color]=r.split(/[,;\t]/).map(x=>(x||'').trim());if(!ref)return;const k=oc+'|'+ref;m[k]=m[k]||{oc,ref,marca:marca.toUpperCase(),colores:[]};if(color&&!m[k].colores.includes(color))m[k].colores.push(color)});
-  const n=Object.values(m);if(n.length)setPlano(n)})};
+ const load=ev=>{
+  const input=ev.target,f=input.files[0];
+  if(!f)return;
+  f.arrayBuffer().then(b=>{
+   const {rows,skipped}=parsePlano(decode(b));
+   if(!rows.length){setMsg({ok:false,text:'No se encontraron registros en el archivo. Revisa que tenga las columnas OC, REF, MARCA y COLOR (en ese orden o con esos encabezados) y que esté guardado como .csv.'});return}
+   setPlano(rows);
+   setMsg({ok:true,text:`Plano cargado: ${rows.length} registro${rows.length===1?'':'s'}${skipped?` · ${skipped} fila${skipped===1?'':'s'} omitida${skipped===1?'':'s'} por no tener OC o REF`:''}.`});
+  }).catch(()=>setMsg({ok:false,text:'No se pudo leer el archivo.'})).finally(()=>{input.value=''});
+ };
  return html`<div className="plano-view"><${Head} t="Plano de referencias" s="Sube un archivo CSV con las columnas OC, REF, MARCA y COLOR. Reemplaza el plano actual."/>
  <div className="tools"><button type="button" className="btn" onClick=${()=>setShowAdd(true)}>Agregar set</button><label className="btn g" style=${{display:'inline-flex',alignItems:'center'}}>Subir plano (.csv)<input type="file" accept=".csv,.txt" onChange=${load} hidden/></label></div>
+ ${msg&&html`<p className=${msg.ok?'mail-success':'mail-error'} role=${msg.ok?'status':'alert'}>${msg.text}</p>`}
  ${plano.length?html`<div className="tw"><table><thead><tr><th>OC</th><th>REF</th><th>Marca</th><th>Colores</th></tr></thead><tbody>${plano.map((p,i)=>html`<tr key=${i}><td>${p.oc}</td><td className="ref">${p.ref}</td><td>${p.marca}</td><td><${Chips} l=${p.colores}/></td></tr>`)}</tbody></table></div>`:html`<div className="panel empty">El plano está vacío. Agrega un set o sube un archivo para crear referencias.</div>`}
  ${showAdd&&html`<${AddSetDialog} onClose=${closeAdd}><form onSubmit=${addReference}>
  <div className="row"><div className="fl"><label htmlFor="plan-oc">OC</label><input id="plan-oc" required value=${oc} onInput=${e=>setOc(e.target.value)} placeholder="Ej. 54677"/></div>
