@@ -1,5 +1,6 @@
 import {html,useEffect,useState} from '../lib.js';
 import {Chips,Head} from '../components/ui.js';
+import * as XLSX from 'xlsx';
 
 const norm=x=>(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const decode=buf=>{try{return new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){return new TextDecoder('windows-1252').decode(buf)}};
@@ -71,14 +72,22 @@ function Plano({plano,setPlano}){
   const input=ev.target,f=input.files[0];
   if(!f)return;
   f.arrayBuffer().then(b=>{
-   const {rows,skipped}=parsePlano(decode(b));
-   if(!rows.length){setMsg({ok:false,text:'No se encontraron registros en el archivo. Revisa que tenga las columnas OC, REF, MARCA y COLOR (en ese orden o con esos encabezados) y que esté guardado como .csv.'});return}
+   const ext=f.name.split('.').pop().toLowerCase();
+   let content;
+   if(ext==='csv'||ext==='txt')content=decode(b);
+   else {
+    const workbook=XLSX.read(b,{type:'array'});
+    const sheet=workbook.Sheets[workbook.SheetNames[0]];
+    content=sheet?XLSX.utils.sheet_to_csv(sheet):'';
+   }
+   const {rows,skipped}=parsePlano(content);
+   if(!rows.length){setMsg({ok:false,text:'No se encontraron registros. Revisa que la primera hoja tenga las columnas OC, REF, MARCA y COLOR, con esos encabezados o en ese orden.'});return}
    setPlano(rows);
    setMsg({ok:true,text:`Plano cargado: ${rows.length} registro${rows.length===1?'':'s'}${skipped?` · ${skipped} fila${skipped===1?'':'s'} omitida${skipped===1?'':'s'} por no tener OC o REF`:''}.`});
   }).catch(()=>setMsg({ok:false,text:'No se pudo leer el archivo.'})).finally(()=>{input.value=''});
  };
- return html`<div className="plano-view"><${Head} t="Plano de referencias" s="Sube un archivo CSV con las columnas OC, REF, MARCA y COLOR. Reemplaza el plano actual."/>
- <div className="tools"><button type="button" className="btn" onClick=${()=>setShowAdd(true)}>Agregar set</button><label className="btn g" style=${{display:'inline-flex',alignItems:'center'}}>Subir plano (.csv)<input type="file" accept=".csv,.txt" onChange=${load} hidden/></label></div>
+ return html`<div className="plano-view"><${Head} t="Plano de referencias" s="Carga un archivo Excel (.xlsx o .xls) o CSV con las columnas OC, REF, MARCA y COLOR. El archivo reemplaza el plano actual."/>
+ <div className="tools"><button type="button" className="btn" onClick=${()=>setShowAdd(true)}>Agregar set</button><label className="btn g" style=${{display:'inline-flex',alignItems:'center'}}>Subir plano (Excel o CSV)<input type="file" accept=".xlsx,.xls,.xlsm,.csv,.txt" onChange=${load} hidden/></label></div>
  ${msg&&html`<p className=${msg.ok?'mail-success':'mail-error'} role=${msg.ok?'status':'alert'}>${msg.text}</p>`}
  ${plano.length?html`<div className="tw"><table><thead><tr><th>OC</th><th>REF</th><th>Marca</th><th>Colores</th></tr></thead><tbody>${plano.map((p,i)=>html`<tr key=${i}><td>${p.oc}</td><td className="ref">${p.ref}</td><td>${p.marca}</td><td><${Chips} l=${p.colores}/></td></tr>`)}</tbody></table></div>`:html`<div className="panel empty">El plano está vacío. Agrega un set o sube un archivo para crear referencias.</div>`}
  ${showAdd&&html`<${AddSetDialog} onClose=${closeAdd}><form onSubmit=${addReference}>
