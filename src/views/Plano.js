@@ -37,6 +37,21 @@ function parsePlano(text){
  return {rows:Object.values(m),skipped};
 }
 
+function mergePlano(actual,nuevos){
+ const merged=actual.map(p=>({...p,colores:[...(p.colores||[])]}));
+ const index=new Map(merged.map((p,i)=>[`${p.oc.trim().toUpperCase()}|${p.ref.trim().toUpperCase()}`,i]));
+ nuevos.forEach(n=>{
+  const key=`${n.oc.trim().toUpperCase()}|${n.ref.trim().toUpperCase()}`;
+  const i=index.get(key);
+  if(i===undefined){index.set(key,merged.length);merged.push({...n,colores:[...(n.colores||[])]});return}
+  const existente=merged[i];
+  if(!existente.marca&&n.marca)existente.marca=n.marca;
+  const colores=new Set((existente.colores||[]).map(c=>c.trim().toUpperCase()));
+  (n.colores||[]).forEach(c=>{if(!colores.has(c.trim().toUpperCase())){existente.colores.push(c);colores.add(c.trim().toUpperCase())}});
+ });
+ return merged;
+}
+
 function AddSetDialog({onClose,children}){
  useEffect(()=>{
   const onKeyDown=e=>{if(e.key==='Escape')onClose()};
@@ -52,8 +67,8 @@ function AddSetDialog({onClose,children}){
 
 function Plano({plano,setPlano}){
  const [oc,setOc]=useState(''),[ref,setRef]=useState(''),[marca,setMarca]=useState(''),[colores,setColores]=useState(''),[formError,setFormError]=useState(''),[showAdd,setShowAdd]=useState(false),[msg,setMsg]=useState(null);
- const closeAdd=()=>{setShowAdd(false);setFormError('')};
- const addReference=ev=>{
+  const closeAdd=()=>{setShowAdd(false);setFormError('')};
+  const addReference=ev=>{
   ev.preventDefault();
   const cleanOc=oc.trim(),cleanRef=ref.trim(),cleanMarca=marca.trim().toUpperCase();
   const cleanColors=[...new Set(colores.split(',').map(c=>c.trim()).filter(Boolean))];
@@ -65,7 +80,7 @@ function Plano({plano,setPlano}){
    setFormError(`La combinación OC ${cleanOc} / REF ${cleanRef} ya existe en el plano.`);
    return;
   }
-  setPlano([...plano,{oc:cleanOc,ref:cleanRef,marca:cleanMarca,colores:cleanColors}]);
+  setPlano(actual=>mergePlano(actual,[{oc:cleanOc,ref:cleanRef,marca:cleanMarca,colores:cleanColors}]));
   setOc('');setRef('');setMarca('');setColores('');closeAdd();
  };
  const load=ev=>{
@@ -82,12 +97,17 @@ function Plano({plano,setPlano}){
    }
    const {rows,skipped}=parsePlano(content);
    if(!rows.length){setMsg({ok:false,text:'No se encontraron registros. Revisa que la primera hoja tenga las columnas OC, REF, MARCA y COLOR, con esos encabezados o en ese orden.'});return}
-   setPlano(rows);
-   setMsg({ok:true,text:`Plano cargado: ${rows.length} registro${rows.length===1?'':'s'}${skipped?` · ${skipped} fila${skipped===1?'':'s'} omitida${skipped===1?'':'s'} por no tener OC o REF`:''}.`});
+   setPlano(actual=>mergePlano(actual,rows));
+   setMsg({ok:true,text:`Se agregaron ${rows.length} registro${rows.length===1?'':'s'}${skipped?` · ${skipped} fila${skipped===1?'':'s'} omitida${skipped===1?'':'s'} por no tener OC o REF`:''}.`});
   }).catch(()=>setMsg({ok:false,text:'No se pudo leer el archivo.'})).finally(()=>{input.value=''});
- };
- return html`<div className="plano-view"><${Head} t="Plano de referencias" s="Carga un archivo Excel (.xlsx o .xls) o CSV con las columnas OC, REF, MARCA y COLOR. El archivo reemplaza el plano actual."/>
- <div className="tools"><button type="button" className="btn" onClick=${()=>setShowAdd(true)}>Agregar set</button><label className="btn g" style=${{display:'inline-flex',alignItems:'center'}}>Subir plano (Excel o CSV)<input type="file" accept=".xlsx,.xls,.xlsm,.csv,.txt" onChange=${load} hidden/></label></div>
+  };
+  const clearPlan=()=>{
+   if(!plano.length||!window.confirm('¿Vaciar el plano guardado? Esta acción no elimina los sets que ya estén en auditoría.'))return;
+   setPlano([]);
+   setMsg({ok:true,text:'El plano quedó vacío. Los cambios se guardan automáticamente.'});
+  };
+  return html`<div className="plano-view"><${Head} t="Plano de referencias" s="Carga un archivo Excel (.xlsx o .xls) o CSV con las columnas OC, REF, MARCA y COLOR. Los registros del archivo se agregan al plano; las OC y referencias existentes se conservan."/>
+   <div className="tools"><button type="button" className="btn" onClick=${()=>setShowAdd(true)}>Agregar set</button><label className="btn g" style=${{display:'inline-flex',alignItems:'center'}}>Subir plano (Excel o CSV)<input type="file" accept=".xlsx,.xls,.xlsm,.csv,.txt" onChange=${load} hidden/></label>${plano.length>0&&html`<button type="button" className="btn g" onClick=${clearPlan}>Vaciar plano</button>`}</div>
  ${msg&&html`<p className=${msg.ok?'mail-success':'mail-error'} role=${msg.ok?'status':'alert'}>${msg.text}</p>`}
  ${plano.length?html`<div className="tw"><table><thead><tr><th>OC</th><th>REF</th><th>Marca</th><th>Colores</th></tr></thead><tbody>${plano.map((p,i)=>html`<tr key=${i}><td>${p.oc}</td><td className="ref">${p.ref}</td><td>${p.marca}</td><td><${Chips} l=${p.colores}/></td></tr>`)}</tbody></table></div>`:html`<div className="panel empty">El plano está vacío. Agrega un set o sube un archivo para crear referencias.</div>`}
  ${showAdd&&html`<${AddSetDialog} onClose=${closeAdd}><form onSubmit=${addReference}>

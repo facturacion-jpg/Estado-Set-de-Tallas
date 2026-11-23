@@ -92,6 +92,7 @@ button.chip{cursor:pointer}button.chip[aria-pressed=true]{background:var(--acs);
 .mail-error,.mail-success{margin:8px 0;padding:10px 12px;border-radius:8px}
 .mail-error{background:var(--rjb);color:var(--rj)}
 .mail-success{background:var(--okb);color:var(--ok)}
+.mail-preview-status{display:inline-block;margin-top:12px;padding:7px 12px;border-radius:999px;font-weight:700;font-size:13px}
 .mail pre{white-space:pre-wrap;font:inherit;background:var(--bg);padding:12px;border-radius:8px;margin:10px 0}
 .mwho{display:none}
 .menu-backdrop{display:none}

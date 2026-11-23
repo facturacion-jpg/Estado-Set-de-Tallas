@@ -5,7 +5,12 @@ import Web from './views/Web.js';
 import Final from './views/Final.js';
 import Plano from './views/Plano.js';
 import Mail from './views/Mail.js';
+import {firebaseReady} from './firebase.js';
+import {subscribeState,saveState} from './database.js';
 function App(){
+ const [dbLoaded,setDbLoaded]=useState(false),[dbError,setDbError]=useState('');
+ useEffect(()=>{if(!firebaseReady){setDbLoaded(true);setDbError('Firebase no est� configurado.');return}return subscribeState(data=>{if(Array.isArray(data.plano))setPlano(data.plano);if(Array.isArray(data.sets))setSets(data.sets);setDbLoaded(true);setDbError('')},error=>{console.error('Firestore read error',error);setDbError('No se pudo leer Firestore. Revisa la conexi�n y las reglas.');setDbLoaded(true)})},[]);
+ useEffect(()=>{if(!firebaseReady||!dbLoaded)return;const timer=setTimeout(()=>saveState({plano,sets,updatedAt:new Date().toISOString()}).then(()=>setDbError('')).catch(error=>{console.error('Firestore write error',error);setDbError('No se pudo guardar en Firestore. Revisa las reglas de seguridad y la conexi�n.')}),700);return()=>clearTimeout(timer)},[plano,sets,dbLoaded]);
  const [v,setV]=useState('tablero'),[plano,setPlano]=useLS('plano',PLANO0),[sets,setSets]=useLS('sets',SETS0),[por,setPor]=useLS('por','Mari'),[theme,setTheme]=useLS('theme','light'),[menuOpen,setMenuOpen]=useState(() => typeof window !== 'undefined' ? window.matchMedia('(min-width: 821px)').matches : true),[navCompact,setNavCompact]=useState(false),[m,setM]=useState(null);
  useEffect(()=>{document.documentElement.dataset.theme=theme},[theme]);
  useEffect(()=>{let lastY=window.scrollY,deltaSinceChange=0;const onScroll=()=>{const y=window.scrollY;deltaSinceChange+=y-lastY;lastY=y;if(y<8){deltaSinceChange=0;setNavCompact(false)}else if(deltaSinceChange>12){deltaSinceChange=0;setNavCompact(true)}else if(deltaSinceChange< -12){deltaSinceChange=0;setNavCompact(false)}};window.addEventListener('scroll',onScroll,{passive:true});return()=>window.removeEventListener('scroll',onScroll)},[]);
@@ -24,7 +29,7 @@ function App(){
  ${N.map(([k,t,c,i])=>html`<button key=${k} type="button" className="nav" aria-current=${v===k?'page':undefined} onClick=${()=>navigate(k)}><span className="nav-icon">${icon(i)}</span><span className="nav-label">${t}</span>${c>0&&html`<span className="cnt">${c}</span>`}</button>`)}
  <div className="who">${quien}</div></aside>
  ${menuOpen&&html`<button type="button" className="menu-backdrop" aria-label="Cerrar menú" onClick=${()=>setMenuOpen(false)}></button>`}
- <main><div className="topbar"><button type="button" className="menu-toggle" aria-label=${menuOpen?'Cerrar menú':'Abrir menú'} aria-expanded=${menuOpen} onClick=${()=>setMenuOpen(!menuOpen)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><div className="theme-bar">${themeToggle}</div></div><div className="mwho">${quien}</div>
+ <main><div className="topbar"><button type="button" className="menu-toggle" aria-label=${menuOpen?'Cerrar menú':'Abrir menú'} aria-expanded=${menuOpen} onClick=${()=>setMenuOpen(!menuOpen)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><div className="theme-bar">${themeToggle}</div></div><div className="mwho">${quien}</div>${dbError&&html`<p className="mail-error" role="alert">${dbError}</p>`}
  ${v==='tablero'&&html`<${Tablero} sets=${sets}/>`}${v==='nuevo'&&html`<${Nuevo} plano=${plano} sets=${sets} add=${add} go=${setV}/>`}
  ${v==='web'&&html`<${Web} sets=${sets} upd=${upd}/>`}${v==='final'&&html`<${Final} sets=${sets} upd=${upd} mail=${setM}/>`}${v==='plano'&&html`<${Plano} plano=${plano} setPlano=${setPlano}/>`}</main>
  <nav className=${'mobile-nav'+(navCompact?' is-compact':'')} aria-label="Navegación principal">${N.map(([k,t,c,i])=>html`<button key=${k} type="button" aria-current=${v===k?'page':undefined} aria-label=${t} onClick=${()=>navigate(k)}><span className="mobile-nav-icon">${icon(i)}</span><span className="mobile-nav-label">${t==='Auditoría web'?'Aud. web':t==='Auditoría final'?'Aud. final':t==='Nuevo set'?'Nuevo':t}</span>${c>0&&html`<span className="mobile-nav-count">${c}</span>`}</button>`)}</nav>
