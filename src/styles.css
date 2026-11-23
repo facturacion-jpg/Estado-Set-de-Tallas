@@ -17,7 +17,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .theme-bar{display:flex;justify-content:flex-end}
 .theme-toggle{display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--ln);border-radius:8px;background:var(--sf);color:var(--ink);cursor:pointer}
 .theme-toggle:hover{background:var(--acs)}
-.theme-icon{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.theme-icon{font-size:21px;line-height:1}
 .nav{display:flex;align-items:center;justify-content:flex-start;gap:11px;border:0;background:none;text-align:left;padding:11px 10px;border-radius:9px;cursor:pointer;color:var(--mut);font-weight:500}
 .nav:hover{background:var(--acs)}.nav[aria-current=page]{background:var(--acs);color:var(--ac);font-weight:600}
 .nav-icon{display:grid;place-items:center;width:20px;height:20px;flex:0 0 20px}

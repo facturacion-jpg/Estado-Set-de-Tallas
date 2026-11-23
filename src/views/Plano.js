@@ -100,14 +100,9 @@ function Plano({plano,setPlano}){
    setPlano(actual=>mergePlano(actual,rows));
    setMsg({ok:true,text:`Se agregaron ${rows.length} registro${rows.length===1?'':'s'}${skipped?` · ${skipped} fila${skipped===1?'':'s'} omitida${skipped===1?'':'s'} por no tener OC o REF`:''}.`});
   }).catch(()=>setMsg({ok:false,text:'No se pudo leer el archivo.'})).finally(()=>{input.value=''});
-  };
-  const clearPlan=()=>{
-   if(!plano.length||!window.confirm('¿Vaciar el plano guardado? Esta acción no elimina los sets que ya estén en auditoría.'))return;
-   setPlano([]);
-   setMsg({ok:true,text:'El plano quedó vacío. Los cambios se guardan automáticamente.'});
-  };
-  return html`<div className="plano-view"><${Head} t="Plano de referencias" s="Carga un archivo Excel (.xlsx o .xls) o CSV con las columnas OC, REF, MARCA y COLOR. Los registros del archivo se agregan al plano; las OC y referencias existentes se conservan."/>
-   <div className="tools"><button type="button" className="btn" onClick=${()=>setShowAdd(true)}>Agregar set</button><label className="btn g" style=${{display:'inline-flex',alignItems:'center'}}>Subir plano (Excel o CSV)<input type="file" accept=".xlsx,.xls,.xlsm,.csv,.txt" onChange=${load} hidden/></label>${plano.length>0&&html`<button type="button" className="btn g" onClick=${clearPlan}>Vaciar plano</button>`}</div>
+ };
+ return html`<div className="plano-view"><${Head} t="Plano de referencias" s="Carga un archivo Excel (.xlsx o .xls) o CSV con las columnas OC, REF, MARCA y COLOR. Los registros del archivo se agregan al plano; las OC y referencias existentes se conservan."/>
+  <div className="tools"><button type="button" className="btn" onClick=${()=>setShowAdd(true)}>Agregar set</button><label className="btn g" style=${{display:'inline-flex',alignItems:'center'}}>Subir plano (Excel o CSV)<input type="file" accept=".xlsx,.xls,.xlsm,.csv,.txt" onChange=${load} hidden/></label></div>
  ${msg&&html`<p className=${msg.ok?'mail-success':'mail-error'} role=${msg.ok?'status':'alert'}>${msg.text}</p>`}
  ${plano.length?html`<div className="tw"><table><thead><tr><th>OC</th><th>REF</th><th>Marca</th><th>Colores</th></tr></thead><tbody>${plano.map((p,i)=>html`<tr key=${i}><td>${p.oc}</td><td className="ref">${p.ref}</td><td>${p.marca}</td><td><${Chips} l=${p.colores}/></td></tr>`)}</tbody></table></div>`:html`<div className="panel empty">El plano está vacío. Agrega un set o sube un archivo para crear referencias.</div>`}
  ${showAdd&&html`<${AddSetDialog} onClose=${closeAdd}><form onSubmit=${addReference}>
